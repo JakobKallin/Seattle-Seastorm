@@ -1,0 +1,26 @@
+Seastorm is a visualizer for Seattle that allows you to inspect the behavior of your programs with the help of an interactive sequence diagram.
+
+To start using Seastorm...
+
+The "Vessels" section lists the vessels that you have acquired through the [Seattle Clearinghouse website](https://seattleclearinghouse.poly.edu/). For each vessel, you can configure the following:
+
+- Use: If you disable this checkbox, the vessel will not take part in the experiments that you start.
+- Title: This will be displayed in the sequence diagram to make the vessel easier to identify.
+- File: This is the file that the vessel will run when you start an experiment.
+- Arguments: These are the arguments that will be passed to the vessel's file when you start an experiment.
+
+Below the vessels are three buttons:
+
+- Start Vessels: Uploads all files to every vessel, then for each vessel starts the specified file with the specified arguments. The visualization will appear in the "Diagram" section and be updated every few seconds.
+- Stop Vessels: Stops all vessels and updates the visualization with the final result.
+- Reset Vessels: Stops all vessels and removes all files on them. This is only necessary if some vessel can no longer be used due to errors; by default, multiple experiments can be run without resetting the vessels between them.
+
+The "Files" section lists the files that are available to you. If you have set Seastorm to watch a directory on the local filesystem for changes, it lists the file names as well as the time that they most recently changed. Otherwise, it provides a text editor for each file as well as the ability to add, delete, and rename files.
+
+The "Diagram" section visualizes the execution of your experiment as a sequence diagram where each box represents an event and each arrow represents a message.
+
+- Arrows:
+- Crossed-out arrows: 
+- Boxes without arrows:
+
+By hovering over a box or an arrow, you can see when the message related to that box or arrow was sent and received.

@@ -1,0 +1,12 @@
+Known issues:
+
+- Strange bug causes first HTTP request to proxy to be delayed by several seconds. Appears to affect every browser and only Python, implying that the error is in the Python code.
+- Some code (particularly ProgramController.js and monitor.js) contains a highly entangled mix of asynchronous code and GUI code. It should be rewritten using more separation and higher-level asynchronous operations.
+- No progress bar for stopping vessels.
+- The Ace editor scrollbar does not work properly when the editor's height is dynamically changed (such as when an error message appears above it).
+- The visualizer currently uses AngularJS but should possibly be rewritten using some other library or just native DOM manipulation, for modularity and performance.
+- The visualizer should not remove all elements every time it updates, because that causes a flicker and resets things like scroll state.
+- The CSS should be rewritten to be more maintainable, possibly using a preprocessor or more presentational classes (which has several downsides but might not be a significant problem for a single-page application like this).
+- Refreshing the list of vessels should be possible, to reflect newly acquired or released vessels.
+- "Reset Vessels" should not be disabled when the vessels are running. (It should be an alternative to "Stop Vessels" for ending an execution.)
+- TCP does not consider situations where more is sent than received.

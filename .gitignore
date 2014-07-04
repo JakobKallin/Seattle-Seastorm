@@ -1,0 +1,8 @@
+*.sublime-workspace
+*.pyc
+.svn
+server/tests/nodemanager/dylink_repy.py
+server/tests/nodemanager/*.old
+dylink_repy.py
+*.test.repy
+server/tests/*/seastorm.log

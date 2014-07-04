@@ -1,0 +1,184 @@
+# This file is part of Seastorm
+# Copyright 2014 Jakob Kallin
+
+def seastorm_base64(s):
+  base64_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+  # Change from characters to integers for binary operations.
+  bytes = []
+  for x in s:
+    bytes.append(ord(x))
+
+  # Encode the 8-bit words into 6-bit words.
+  x6bit_words = []
+  index = 0
+  while True:
+
+    # Encode the first 6 bits from three 8-bit values.
+    try:
+      x8bits = bytes[index]
+    except IndexError:
+      break
+    else:
+      x6bits = x8bits >> 2
+      leftover_bits = x8bits & 3
+      x6bit_words.append(base64_alphabet[x6bits])
+
+    # Encode the next 8 bits.
+    try:
+      x8bits = bytes[index + 1]
+    except IndexError:
+      x6bits = leftover_bits << 4
+      x6bit_words.extend([base64_alphabet[x6bits], "=="])
+      break
+    else:
+      x6bits = (leftover_bits << 4) | (x8bits >> 4)
+      leftover_bits = x8bits & 15
+      x6bit_words.append(base64_alphabet[x6bits])
+
+    # Encode the final 8 bits.
+    try:
+      x8bits = bytes[index + 2]
+    except IndexError:
+      x6bits = leftover_bits << 2
+      x6bit_words.extend([base64_alphabet[x6bits], "="])
+      break
+    else:
+      x6bits = (leftover_bits << 2) | (x8bits >> 6)
+      x6bit_words.append(base64_alphabet[x6bits])
+      x6bits = x8bits & 63
+      x6bit_words.append(base64_alphabet[x6bits])
+
+    index += 3
+
+  return "".join(x6bit_words)
+
+def increase_seastorm_clock():
+  mycontext['seastorm_clock_lock'].acquire(True)
+  mycontext['seastorm_clock'] += 1
+  # Save copy of clock to avoid other threads altering.
+  clock = mycontext['seastorm_clock']
+  mycontext['seastorm_clock_lock'].release()
+  
+  return clock
+
+def adjust_seastorm_clock(other_clock):
+  mycontext['seastorm_clock_lock'].acquire(True)
+  mycontext['seastorm_clock'] = max(mycontext['seastorm_clock'], other_clock) + 1
+  # Save copy of clock to avoid other threads altering.
+  clock = mycontext['seastorm_clock']
+  mycontext['seastorm_clock_lock'].release()
+  
+  return clock
+
+def add_seastorm_send_entry(departure, recipient, payload, title=None):
+  if title is None:
+    line = ','.join(['send', str(departure), recipient, seastorm_base64(payload)])
+  else:
+    line = ','.join(['send', str(departure), recipient, seastorm_base64(title), seastorm_base64(payload)])
+  add_seastorm_log_line(line)
+
+def add_seastorm_receive_entry(arrival, departure, sender, payload, title=None):
+  if title is None:
+    line = ','.join(['receive', str(arrival), str(departure), sender, seastorm_base64(payload)])
+  else:
+    line = ','.join(['receive', str(arrival), str(departure), sender, seastorm_base64(title), seastorm_base64(payload)])
+  add_seastorm_log_line(line)
+
+def add_seastorm_log_entry(time, title, content):
+  if title is None:
+    line = ','.join(['log', str(time), seastorm_base64(content)])
+  else:
+    line = ','.join(['log', str(time), seastorm_base64(title), seastorm_base64(content)])
+  add_seastorm_log_line(line)
+
+def add_seastorm_log_line(line):
+  mycontext['seastorm_log_lock'].acquire()
+  log = open('seastorm.log', 'a')
+  log.write(line + '\n')
+  log.close()
+  mycontext['seastorm_log_lock'].release()
+
+repy_sendmess = sendmess
+def sendmess(other_ip, other_port, payload, this_ip, this_port, title=None):
+  # Adjust the Lamport clock.
+  departure = increase_seastorm_clock()
+  
+  # Add departure metadata to the message, needed for adjusting the recipient's
+  # Lamport clock.
+  metadata = str(departure).zfill(4)
+  wrapped_message = metadata + payload
+  
+  # Send the message with added metadata.
+  bytes_sent = repy_sendmess(other_ip, other_port, wrapped_message, this_ip, this_port)
+  # Calculate the number of actual payload bytes sent. If not even the metadata
+  # is successfully sent, this number should be 0, so make sure that a negative
+  # number is not returned.
+  payload_bytes_sent = max(bytes_sent - len(metadata), 0)
+  
+  # Create a log entry for the sent message.
+  if payload_bytes_sent > 0:
+    add_seastorm_send_entry(
+      departure=departure,
+      recipient=other_ip + ':' + str(other_port),
+      payload=payload,
+      title=title
+    )
+  
+  return payload_bytes_sent
+
+repy_recvmess = recvmess
+def recvmess(this_ip, this_port, user_callback):
+  def message_received(other_ip, other_port, message, commhandle):
+    # Parse the data from the received message.
+    departure = int(message[:4])
+    payload = message[4:]
+    
+    # Adjust the Lamport clock.
+    arrival = adjust_seastorm_clock(departure)
+    
+    # Create a log entry for the received message.
+    add_seastorm_receive_entry(
+      arrival=arrival,
+      departure=departure,
+      sender=other_ip + ':' + str(other_port),
+      payload=payload
+    )
+    
+    # Run the user-provided callback after everything else, because it might
+    # contain calls to `sendmess` that will modify the clock.
+    user_callback(other_ip, other_port, payload, commhandle)
+    
+  commhandle = repy_recvmess(this_ip, this_port, message_received)
+  return commhandle
+
+def log(*args, **kwargs):
+  if 'title' in kwargs:
+    title = kwargs['title']
+  else:
+    title = None
+  
+  # Adjust the Lamport clock.
+  time = increase_seastorm_clock()
+  add_seastorm_log_entry(
+    time=time,
+    title=title,
+    content=''.join(map(str, args))
+  )
+
+if callfunc in ['initialize', 'import']:
+  # Create empty log.
+  if 'seastorm.log' in listdir():
+    removefile('seastorm.log')
+  open('seastorm.log', 'w').close()
+  
+  mycontext['seastorm_clock'] = 0
+  
+  # Only one thread writing to the log at any given time.
+  mycontext['seastorm_log_lock'] = getlock()
+  
+  # Only one thread modifying the clock at any given time.
+  mycontext['seastorm_clock_lock'] = getlock()
+  
+  # Only one thread handling remote socket closing at any given time.
+  mycontext['seastorm_close_lock'] = getlock()
