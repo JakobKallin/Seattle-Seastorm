@@ -35,7 +35,7 @@ On the host that will serve the Seastorm client and server to the users, perform
 	- `cors_origin` is the origin from which the `output_path` directory is served.
 3. Instruct your users to visit the host's web server in their browser and follow the instructions given in order to install Seastorm.
 
-Example
+#### Example
 
 In this example, we want to distribute Seastorm from `https://example.com:8000`. We have set up a web server to serve static files from the directory `/home/jakob/www`.
 
