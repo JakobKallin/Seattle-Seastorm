@@ -33,6 +33,7 @@ On the host that will serve the Seastorm client and server to the users, perform
 2. In the root directory of the Seastorm source code, run `python build.py output_path cors_origin`, where:
 	- `output_path` is a directory served by a web server from this host.
 	- `cors_origin` is the origin from which the `output_path` directory is served.
+		- An origin has to include a protocol and a hostname. It can optionally include a port number.
 3. Instruct your users to visit the host's web server in their browser and follow the instructions given in order to install Seastorm.
 
 #### Example
